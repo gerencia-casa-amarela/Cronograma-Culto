@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<!-- maximum-scale=1 evita o zoom automático do iPhone ao tocar num campo (o zoom com dois dedos continua funcionando) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d3557">
+<title>Cronograma de Culto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<style>
+:root{
+  --bg:#eef2f7;
+  --card:#ffffff;
+  --ink:#16202e;
+  --muted:#6b7686;
+  --line:#e2e7ee;
+  --chip:#f1f4f8;
+  --primary:#1d3557;
+  --accent:#4a6fa5;
+  --resp:#4a6fa5;
+  --time:#d62828;
+  --ok:#1f9d55;
+  --warn:#c77700;
+  --radius:12px;
+  --shadow:0 1px 2px rgba(16,32,56,.06),0 4px 14px rgba(16,32,56,.06);
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px;line-height:1.35;-webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+[hidden]{display:none!important}
+
+/* ---------- TOPO ---------- */
+.topbar{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;background:var(--primary);color:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+}
+.switch{
+  flex:1;min-width:0;display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.1);border:0;border-radius:10px;padding:6px 10px;text-align:left;color:#fff;
+}
+.switch .sw-text{flex:1;min-width:0;display:flex;flex-direction:column}
+.sw-title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw-sub{font-size:12px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.switch svg{flex-shrink:0;opacity:.8}
+.sync{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+  padding:4px 8px;border-radius:99px;background:rgba(255,255,255,.12);white-space:nowrap;
+}
+.sync::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.sync.ok{color:#7ee2a8}.sync.saving{color:#ffd166}.sync.off{color:#ffb4a2}.sync.local{color:#cfd8e3}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px;border:0;background:rgba(255,255,255,.1);
+  display:grid;place-items:center;color:#fff;flex-shrink:0;
+}
+
+/* ---------- CONTEÚDO ---------- */
+.wrap{max-width:760px;margin:0 auto;padding:10px 10px calc(84px + var(--safe-b))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+.meta{display:grid;grid-template-columns:1fr auto auto;gap:6px;padding:8px;margin-bottom:10px}
+.fld{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fld>span{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding-left:6px}
+.fld input{
+  border:1px solid var(--line);background:var(--chip);border-radius:8px;padding:6px 7px;
+  font-size:14px;font-weight:600;min-width:0;width:100%;height:34px;
+}
+.fld input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(74,111,165,.18)}
+#m-date{width:134px}
+#m-start{width:98px}
+
+/* banner ao vivo (quando a tela ao vivo está minimizada) */
+.live-banner{
+  display:flex;align-items:center;gap:10px;width:100%;margin-bottom:10px;padding:9px 12px;
+  border:0;border-radius:var(--radius);background:#1b263b;color:#fff;text-align:left;box-shadow:var(--shadow);
+}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 0 0 rgba(255,77,77,.6);animation:pulse 1.6s infinite;flex-shrink:0}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,77,.6)}70%{box-shadow:0 0 0 9px rgba(255,77,77,0)}100%{box-shadow:0 0 0 0 rgba(255,77,77,0)}}
+.lb-main{flex:1;min-width:0}
+.lb-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.lb-sub{font-size:12px;opacity:.7}
+.lb-count{font-weight:800;font-variant-numeric:tabular-nums;font-size:18px}
+
+/* ---------- ITENS ---------- */
+#list{list-style:none;margin:0;padding:0}
+.item{
+  display:grid;grid-template-columns:22px 46px 1fr 30px;gap:2px 4px;align-items:start;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:6px 4px 6px 2px;margin-bottom:6px;box-shadow:0 1px 2px rgba(16,32,56,.04);
+  transition:border-color .2s,box-shadow .2s,opacity .2s;
+}
+.grip{
+  display:flex;justify-content:center;align-items:center;height:32px;color:#b6bfcc;
+  cursor:grab;touch-action:none;
+}
+.grip:active{cursor:grabbing;color:var(--accent)}
+.time{
+  font-weight:800;color:var(--time);font-variant-numeric:tabular-nums;font-size:14px;
+  height:32px;display:flex;align-items:center;letter-spacing:-.01em;
+}
+.body{min-width:0;display:flex;flex-direction:column}
+.row1{display:flex;align-items:center;gap:4px;min-width:0}
+.inline{
+  border:1px solid transparent;background:transparent;border-radius:7px;padding:5px 6px;
+  width:100%;min-width:0;transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.inline:hover{border-color:var(--line)}
+.inline:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(74,111,165,.15)}
+.inline::placeholder{color:#a9b2bf;font-weight:400}
+.f-title{flex:1;font-weight:700;font-size:15px;height:32px}
+.f-resp{font-size:13px;color:var(--resp);font-style:italic;font-weight:500;height:26px;padding-top:2px;padding-bottom:2px}
+.dur{
+  display:flex;align-items:center;flex-shrink:0;height:28px;padding:0 7px 0 2px;
+  background:var(--chip);border-radius:8px;cursor:text;
+}
+.f-dur{width:34px;text-align:right;font-weight:700;font-size:14px;padding:3px 2px;height:26px;font-variant-numeric:tabular-nums}
+.dur span{font-size:11.5px;color:var(--muted);margin-left:1px}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.f-desc{
+  margin:4px 0 2px;width:100%;min-height:64px;resize:none;overflow:hidden;
+  border:1px solid var(--line);background:#f7f9fc;border-radius:8px;padding:7px 8px;
+  font-size:13px;font-weight:600;line-height:1.4;
+}
+.f-desc:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(74,111,165,.15)}
+.more{
+  width:30px;height:32px;border:0;background:transparent;border-radius:8px;color:#9aa4b2;
+  display:grid;place-items:center;
+}
+.more:hover,.more:focus-visible{background:var(--chip);color:var(--ink)}
+.item.ghost{opacity:.35;border-style:dashed}
+.item.chosen{box-shadow:0 10px 30px rgba(16,32,56,.18)}
+.item.now{border-color:var(--time);box-shadow:0 0 0 2px rgba(214,40,40,.18)}
+.item.done{opacity:.5}
+
+.adds{display:flex;gap:8px;margin:4px 0 10px}
+.add{
+  flex:1;height:40px;border:1.5px dashed #c5cedb;background:transparent;border-radius:var(--radius);
+  color:var(--accent);font-weight:600;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.add:hover{background:#fff;border-color:var(--accent)}
+
+.summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px}
+.sum-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.sum-value{font-weight:800;font-size:18px;font-variant-numeric:tabular-nums}
+.sum-value.red{color:var(--time)}
+.sum-col{display:flex;flex-direction:column}
+.sum-col.right{text-align:right}
+
+/* ---------- BARRA INFERIOR ---------- */
+.bottombar{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);padding:10px 12px calc(10px + var(--safe-b));
+}
+.bottombar .in{max-width:760px;margin:0 auto;display:flex;gap:8px}
+.btn{
+  height:44px;border:0;border-radius:11px;padding:0 16px;font-weight:700;font-size:14.5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn.block{width:100%}
+.btn.grow{flex:1}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.green{background:#1f9d55;color:#fff}
+.btn.btn-live{background:#1b263b;color:#fff}
+.btn.btn-live.on{background:#d62828}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.danger{background:#d62828;color:#fff}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.6}
+
+/* ---------- ENTRADA ---------- */
+.gate{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(160deg,#1d3557,#2c4a73)}
+.gate-card{width:100%;max-width:360px;background:#fff;border-radius:18px;padding:26px 20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.gate-icon{width:56px;height:56px;border-radius:16px;background:#eaf0f8;color:var(--primary);display:grid;place-items:center;margin:0 auto 12px}
+.gate h1{font-size:20px;margin:0 0 6px}
+.gate p{margin:0 0 16px;color:var(--muted);font-size:14px}
+.gate input{
+  width:100%;height:46px;border:1.5px solid var(--line);border-radius:11px;padding:0 14px;font-size:16px;
+  text-align:center;letter-spacing:.04em;margin-bottom:10px;
+}
+.gate input:focus{outline:none;border-color:var(--accent)}
+.gate .hint{font-size:12px;margin:12px 0 0}
+
+/* ---------- FOLHAS / DIÁLOGOS ---------- */
+.backdrop{position:fixed;inset:0;z-index:50;background:rgba(10,18,30,.0);display:flex;align-items:flex-end;justify-content:center;transition:background .2s}
+.backdrop.open{background:rgba(10,18,30,.45)}
+.sheet{
+  width:100%;max-width:520px;background:#fff;border-radius:18px 18px 0 0;padding:8px 10px calc(14px + var(--safe-b));
+  transform:translateY(100%);transition:transform .22s ease;max-height:86vh;overflow:auto;
+}
+.backdrop.open .sheet{transform:none}
+.sheet-handle{width:38px;height:4px;border-radius:4px;background:#d5dbe3;margin:2px auto 10px}
+.sheet-title{font-weight:700;font-size:15px;padding:0 6px 8px}
+.sheet-note{font-size:13px;color:var(--muted);padding:0 6px 10px}
+.sheet-action{
+  display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;
+  padding:12px 10px;border-radius:10px;font-size:15px;font-weight:500;
+}
+.sheet-action small{font-size:12px;color:var(--muted);font-weight:400;margin-top:1px}
+.sheet-action:hover{background:var(--chip)}
+.sheet-action.active{background:#eaf0f8;font-weight:700}
+.sheet-action.danger{color:#d62828}
+.sheet-sep{height:1px;background:var(--line);margin:6px 4px}
+.form{display:flex;flex-direction:column;gap:10px;padding:0 6px 4px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.form input,.form select{height:42px;border:1.5px solid var(--line);border-radius:10px;padding:0 10px;font-size:15px;color:var(--ink);background:#fff}
+.form input:focus,.form select:focus{outline:none;border-color:var(--accent)}
+.form .row{display:flex;gap:8px;margin-top:4px}
+.code-box{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;text-align:center;background:var(--chip);border-radius:10px;padding:12px;margin:0 6px 10px;word-break:break-all}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%) translateY(20px);opacity:0;
+  background:#16202e;color:#fff;padding:10px 14px;border-radius:10px;font-size:13.5px;z-index:60;
+  transition:all .25s;max-width:90vw;text-align:center;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- MODO AO VIVO ---------- */
+.live{
+  position:fixed;inset:0;z-index:40;background:#0f1a2b;color:#fff;
+  display:flex;flex-direction:column;padding:14px 16px calc(16px + var(--safe-b));
+}
+.live-top{display:flex;align-items:center;gap:10px}
+.live-top .tag{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.live-top .sp{flex:1}
+.live-top button{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:10px;height:36px;padding:0 12px;font-weight:600;font-size:13px}
+.live-center{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:6px;max-width:560px;width:100%;margin:0 auto}
+.status{font-weight:700;font-size:13px;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.1)}
+.status.late{background:rgba(214,40,40,.25);color:#ffb3b3}
+.status.early{background:rgba(31,157,85,.25);color:#9be7bd}
+.live-label{font-size:12px;opacity:.6;text-transform:uppercase;letter-spacing:.08em;margin-top:10px}
+.live-title{font-size:28px;font-weight:800;line-height:1.15}
+.live-resp{font-size:16px;color:#9fb8de;font-style:italic}
+.live-desc{font-size:14px;opacity:.8;white-space:pre-line;max-height:22vh;overflow:auto}
+.count{font-size:72px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1;margin-top:12px}
+.count.over{color:#ff6b6b}
+.bar{width:100%;height:8px;border-radius:8px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:10px}
+.bar>div{height:100%;background:#7ee2a8;border-radius:8px;transition:width 1s linear}
+.bar.over>div{background:#ff6b6b}
+.next{width:100%;margin-top:18px;background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;text-align:left;display:flex;gap:10px;align-items:center}
+.next .nt{flex:1;min-width:0}
+.next .nt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.next small{opacity:.65}
+.next .ntime{font-weight:800;color:#ff8f8f;font-variant-numeric:tabular-nums}
+.live-end{font-size:13px;opacity:.75;margin-top:8px}
+.live-controls{display:flex;gap:10px;max-width:560px;width:100%;margin:0 auto}
+.live-controls .btn{height:56px;font-size:16px}
+.live-controls .prev{background:rgba(255,255,255,.1);color:#fff;width:64px;flex-shrink:0}
+.live-controls .nextb{flex:1;background:#fff;color:#0f1a2b}
+
+/* ---------- EXPORTAÇÃO (fora da tela) ---------- */
+#export{position:absolute;left:-10000px;top:0}
+.ex{
+  display:inline-block;min-width:380px;max-width:680px;background:#fff;color:#16202e;
+  font-family:Inter,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  -webkit-text-size-adjust:none;text-size-adjust:none;font-size:15px;line-height:1.3;
+}
+.ex-head{background:#1d3557;color:#fff;padding:16px 20px 14px}
+.ex-kicker{font-size:11px;font-weight:700;letter-spacing:.14em;opacity:.7}
+.ex-title{font-size:22px;font-weight:800;margin-top:2px}
+.ex-sub{font-size:13px;opacity:.85;margin-top:3px}
+.ex-table{border-collapse:collapse;width:100%;margin:6px 0}
+.ex-table td{padding:7px 8px;vertical-align:top}
+.ex-table tr.main td{border-top:1px solid #edf0f4}
+.ex-table tr.main:first-child td{border-top:0}
+.ex-time{color:#d62828;font-weight:800;white-space:nowrap;padding-left:20px!important}
+.ex-t{font-weight:700}
+.ex-d{color:#6b7686;font-style:italic;font-size:13.5px;white-space:nowrap;text-align:right}
+.ex-r{color:#4a6fa5;font-style:italic;font-size:14px;padding-right:20px!important}
+.ex-desc{color:#5a6472;font-size:13px;white-space:pre-line;padding-top:0!important;padding-right:20px!important;font-weight:600}
+.ex-foot{border-top:1px solid #e2e7ee;background:#f6f8fb;padding:10px 20px;font-size:13px;color:#4b5563;display:flex;justify-content:space-between;gap:16px}
+.ex-foot b{color:#16202e}
+
+@media (min-width:600px){
+  .wrap{padding-top:16px}
+  .item{grid-template-columns:24px 52px 1fr 32px;padding:8px 6px 8px 4px}
+  .f-resp{max-width:60%}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== TELA DE ENTRADA ===================== -->
+<section id="gate" class="gate" hidden>
+  <form class="gate-card" id="gate-form" autocomplete="off">
+    <div class="gate-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 17.5h6"/></svg>
+    </div>
+    <h1>Cronograma de Culto</h1>
+    <p>Digite o código da equipe de gerência para ver e editar os cronogramas.</p>
+    <input id="gate-code" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="código da equipe">
+    <button class="btn primary block" id="gate-btn" type="submit">Entrar</button>
+    <p class="hint">Use letras, números ou hífen, com pelo menos 8 caracteres.<br>Todos da equipe devem usar o mesmo código.</p>
+  </form>
+</section>
+
+<!-- ===================== APLICATIVO ===================== -->
+<div id="app" hidden>
+  <header class="topbar">
+    <button class="switch" id="culto-switch" aria-label="Trocar de culto">
+      <span class="sw-text"><span class="sw-title" id="sw-title">—</span><span class="sw-sub" id="sw-sub"></span></span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <span class="sync local" id="sync">Local</span>
+    <button class="icon-btn" id="menu-btn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <button class="live-banner" id="live-banner" hidden>
+      <span class="live-dot"></span>
+      <span class="lb-main"><div class="lb-title" id="lb-title"></div><div class="lb-sub" id="lb-sub"></div></span>
+      <span class="lb-count" id="lb-count"></span>
+    </button>
+
+    <section class="meta card">
+      <label class="fld"><span>Culto</span><input id="m-title" placeholder="Nome do culto"></label>
+      <label class="fld"><span>Data</span><input id="m-date" type="date"></label>
+      <label class="fld"><span>Início</span><input id="m-start" type="time"></label>
+    </section>
+
+    <ul id="list"></ul>
+
+    <div class="adds">
+      <button class="add" id="add-simple"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Item</button>
+      <button class="add" id="add-detail"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Item detalhado</button>
+    </div>
+
+    <section class="summary card">
+      <div class="sum-col"><span class="sum-label">Término previsto</span><span class="sum-value red" id="sum-end">--:--</span></div>
+      <div class="sum-col right"><span class="sum-label">Duração total</span><span class="sum-value" id="sum-total">0 min</span></div>
+    </section>
+  </main>
+
+  <nav class="bottombar">
+    <div class="in">
+      <button class="btn btn-live grow" id="live-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Ao vivo</span>
+      </button>
+      <button class="btn green grow" id="export-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg><span>Enviar imagem</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ===================== TELA AO VIVO ===================== -->
+<section class="live" id="live" hidden>
+  <div class="live-top">
+    <span class="tag"><span class="live-dot"></span>Ao vivo</span>
+    <span class="sp"></span>
+    <button id="live-min">Minimizar</button>
+    <button id="live-stop">Encerrar</button>
+  </div>
+  <div class="live-center">
+    <span class="status" id="lv-status">No horário</span>
+    <div class="live-label" id="lv-label">Agora</div>
+    <div class="live-title" id="lv-title"></div>
+    <div class="live-resp" id="lv-resp"></div>
+    <div class="live-desc" id="lv-desc"></div>
+    <div class="count" id="lv-count">00:00</div>
+    <div class="bar" id="lv-bar"><div></div></div>
+    <div class="next" id="lv-next">
+      <div class="nt"><small>A seguir</small><b id="lv-next-title"></b><small id="lv-next-resp"></small></div>
+      <span class="ntime" id="lv-next-time"></span>
+    </div>
+    <div class="live-end" id="lv-end"></div>
+  </div>
+  <div class="live-controls">
+    <button class="btn prev" id="live-prev" aria-label="Voltar item">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m15 6-6 6 6 6"/></svg>
+    </button>
+    <button class="btn nextb" id="live-next">Próximo
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+    </button>
+  </div>
+</section>
+
+<div id="export"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* =====================================================================
+   CONFIGURAÇÃO DO FIREBASE
+   Cole aqui o objeto "firebaseConfig" do seu projeto (veja o LEIA-ME).
+   Enquanto ficar null, o app funciona em MODO LOCAL (só neste aparelho).
+   ===================================================================== */
+const FIREBASE_CONFIG = 	{
+  apiKey: "AIzaSyCiKmVNC_Q8g-EYNzm6WTdO2XnBa5rm0MY",
+	authDomain: "cronograma-culto-ca.firebaseapp.com",
+	projectId: "cronograma-culto-ca",
+	storageBucket: "cronograma-culto-ca.firebasestorage.app",
+	messagingSenderId: "421673113050",
+	appId: "1:421673113050:web:5da3b0c714fb28cdfddce3"
+};
+
+const FIREBASE_VERSION = '10.12.2';
+const MAX_CULTOS = 5;
+
+const MODELO_PADRAO = {
+  name: 'Padrão (Sessão)',
+  title: 'Sessão',
+  startTime: '09:55',
+  items: [
+    { title: 'Vídeo regressivo', responsible: 'Mídia', duration: 5 },
+    { title: 'Vídeo introdutório', responsible: 'Mídia', duration: 1 },
+    { title: 'Introdução', responsible: 'Introdutor', duration: 4 },
+    { title: 'Louvor', responsible: 'Líder de Louvor', duration: 25 },
+    { title: 'Oferta', responsible: 'Introdutor', duration: 10 },
+    { title: 'Visitantes', responsible: 'Introdutor', duration: 0 },
+    { title: 'Programação da Casa', responsible: 'Introdutor e Mídia', duration: 10, description: 'Aviso 1\nAviso 2\nAviso 3' },
+    { title: 'Liberar as crianças', responsible: 'Introdutor', duration: 0 },
+    { title: 'Último louvor', responsible: 'Líder de Louvor', duration: 5 },
+    { title: 'Palavra', responsible: 'Pregador', duration: 40 }
+  ]
+};
+
+/* ===================== UTILITÁRIOS ===================== */
+const $ = (s, r = document) => r.querySelector(s);
+const DEL = Symbol('apagar');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clone = o => o === undefined ? undefined : JSON.parse(JSON.stringify(o));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const num = v => Math.max(0, parseInt(v, 10) || 0);
+const hm2min = s => { const [h, m] = String(s || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const min2hm = n => { n = ((n % 1440) + 1440) % 1440; return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0'); };
+const ms2hm = ms => { const d = new Date(ms); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const fmtDur = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}`;
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const fmtDateShort = iso => iso ? new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '') : 'sem data';
+const fmtDateLong = iso => iso ? new Date(iso + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+
+function applyPatch(obj, patch) {
+  for (const [path, val] of Object.entries(patch)) {
+    const keys = path.split('.');
+    let o = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (typeof o[keys[i]] !== 'object' || o[keys[i]] === null) o[keys[i]] = {};
+      o = o[keys[i]];
+    }
+    const k = keys[keys.length - 1];
+    if (val === DEL) delete o[k]; else o[k] = clone(val);
+  }
+  return obj;
+}
+const itemsArr = c => Object.entries((c && c.items) || {}).map(([id, v]) => ({ id, ...v })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+const itemsToMap = arr => { const m = {}; arr.forEach((it, i) => { const o = { title: it.title || '', responsible: it.responsible || '', duration: num(it.duration ?? it.durationMinutes), order: i }; if (it.description !== undefined) o.description = it.description; m[uid()] = o; }); return m; };
+const stripItems = c => itemsArr(c).map(({ id, order, ...rest }) => rest);
+const sortCultos = l => l.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+
+let toastT;
+function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms); }
+
+/* ===================== ARMAZENAMENTO LOCAL ===================== */
+class LocalStore {
+  constructor() {
+    this.mode = 'local';
+    this.key = 'cc_local_v2';
+    try { this.data = JSON.parse(localStorage.getItem(this.key)); } catch { this.data = null; }
+    if (!this.data) this.data = { cultos: {}, modelos: {} };
+    this.subs = new Set();
+  }
+  _save() { try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch {} this.subs.forEach(f => f()); }
+  _sub(f) { this.subs.add(f); f(); return () => this.subs.delete(f); }
+  watchCultos(cb) { return this._sub(() => cb(Object.entries(this.data.cultos).map(([id, c]) => ({ id, ...clone(c) })), { fromCache: false })); }
+  watchCulto(id, cb) { return this._sub(() => { const c = this.data.cultos[id]; cb(c ? { id, ...clone(c) } : null, { pending: false, offline: false }); }); }
+  watchModelos(cb) { return this._sub(() => cb(Object.entries(this.data.modelos).map(([id, m]) => ({ id, ...clone(m) })))); }
+  createCulto(d) { const id = uid(); this.data.cultos[id] = { ...clone(d), createdAt: Date.now(), updatedAt: Date.now() }; this._save(); return id; }
+  patchCulto(id, patch) { if (!this.data.cultos[id]) return; applyPatch(this.data.cultos[id], patch); this._save(); }
+  deleteCulto(id) { delete this.data.cultos[id]; this._save(); }
+  saveModelo(d) { this.data.modelos[uid()] = clone(d); this._save(); }
+  deleteModelo(id) { delete this.data.modelos[id]; this._save(); }
+  async hasData() { return true; }
+}
+
+/* ===================== FIREBASE (TEMPO REAL) ===================== */
+async function makeFirebaseStore(cfg, code) {
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}`;
+  const { initializeApp } = await import(`${base}/firebase-app.js`);
+  const fs = await import(`${base}/firebase-firestore.js`);
+  const app = initializeApp(cfg);
+  let db;
+  try { db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }) }); }
+  catch { db = fs.getFirestore(app); }
+  const cultosCol = fs.collection(db, 'equipes', code, 'cultos');
+  const modelosCol = fs.collection(db, 'equipes', code, 'modelos');
+  const onErr = e => { console.error(e); toast(e.code === 'permission-denied' ? 'Acesso negado. Verifique o código e as regras do Firestore.' : 'Erro de sincronização. Tentando novamente…', 4000); };
+  const conv = p => { const o = {}; for (const [k, v] of Object.entries(p)) o[k] = v === DEL ? fs.deleteField() : v; return o; };
+  return {
+    mode: 'firebase',
+    watchCultos(cb) { return fs.onSnapshot(cultosCol, { includeMetadataChanges: true }, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })), { fromCache: s.metadata.fromCache }), onErr); },
+    watchCulto(id, cb) { return fs.onSnapshot(fs.doc(cultosCol, id), { includeMetadataChanges: true }, s => cb(s.exists() ? { id: s.id, ...s.data() } : null, { pending: s.metadata.hasPendingWrites, offline: s.metadata.fromCache }), onErr); },
+    watchModelos(cb) { return fs.onSnapshot(modelosCol, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), onErr); },
+    createCulto(d) { const ref = fs.doc(cultosCol); fs.setDoc(ref, { ...d, createdAt: Date.now(), updatedAt: Date.now() }).catch(onErr); return ref.id; },
+    patchCulto(id, patch) { fs.updateDoc(fs.doc(cultosCol, id), conv(patch)).catch(onErr); },
+    deleteCulto(id) { fs.deleteDoc(fs.doc(cultosCol, id)).catch(onErr); },
+    saveModelo(d) { fs.addDoc(modelosCol, d).catch(onErr); },
+    deleteModelo(id) { fs.deleteDoc(fs.doc(modelosCol, id)).catch(onErr); },
+    async hasData() {
+      const t = new Promise(r => setTimeout(() => r(null), 7000));
+      const q = fs.getDocs(fs.query(cultosCol, fs.limit(1))).then(s => !s.empty);
+      const r = await Promise.race([q, t]);
+      return r === null ? true : r; // sem resposta (offline): segue em frente
+    }
+  };
+}
+
+/* ===================== ESTADO ===================== */
+const S = {
+  store: null, cultos: [], modelos: [], cultoId: null, culto: null,
+  pending: {}, sync: { pending: false, offline: false },
+  unsubCulto: null, liveOpen: false, creatingFirst: false
+};
+const list = $('#list');
+const nodes = new Map();
+
+/* --------- fila de alterações (agrupa digitação, envia em lote) --------- */
+let flushTimer = null;
+function mergePending(k, v) {
+  for (const p of Object.keys(S.pending)) if (p.startsWith(k + '.')) delete S.pending[p];
+  const parent = Object.keys(S.pending).find(p => k.startsWith(p + '.'));
+  if (parent) {
+    if (S.pending[parent] === DEL) return;
+    S.pending[parent] = applyPatch(clone(S.pending[parent]), { [k.slice(parent.length + 1)]: v });
+    return;
+  }
+  S.pending[k] = v;
+}
+function queue(patch, { now = false } = {}) {
+  if (!S.culto) return;
+  for (const [k, v] of Object.entries(patch)) mergePending(k, v);
+  applyPatch(S.culto, patch);
+  render();
+  clearTimeout(flushTimer);
+  if (now) flush(); else flushTimer = setTimeout(flush, 500);
+}
+function flush() {
+  clearTimeout(flushTimer);
+  if (!S.cultoId || !Object.keys(S.pending).length) return;
+  const p = S.pending; S.pending = {};
+  p.updatedAt = Date.now();
+  S.store.patchCulto(S.cultoId, p);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+window.addEventListener('pagehide', flush);
+
+/* ===================== INICIALIZAÇÃO ===================== */
+async function init() {
+  if (!FIREBASE_CONFIG) { S.store = new LocalStore(); start(); return; }
+  const code = localStorage.getItem('cc_codigo');
+  if (!code) { showGate(); return; }
+  try { S.store = await makeFirebaseStore(FIREBASE_CONFIG, code); }
+  catch (e) { console.error(e); toast('Não foi possível conectar. Verifique a internet.', 4000); showGate(); return; }
+  start();
+}
+
+function showGate() {
+  $('#app').hidden = true; $('#gate').hidden = false;
+  setTimeout(() => $('#gate-code').focus(), 50);
+}
+$('#gate-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const code = $('#gate-code').value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!/^[a-z0-9._-]{8,60}$/.test(code)) { toast('Use pelo menos 8 caracteres (letras, números ou hífen).'); return; }
+  const btn = $('#gate-btn'); btn.disabled = true; btn.textContent = 'Conectando…';
+  try {
+    const store = await makeFirebaseStore(FIREBASE_CONFIG, code);
+    const exists = await store.hasData();
+    if (!exists) {
+      const ok = await confirmBox('Nenhum cronograma encontrado com esse código.', 'Criar nova equipe com este código', false,
+        'Se você digitou o código da sua equipe, confira se não há erro de digitação. Se é a primeira vez, toque em criar.');
+      if (!ok) return;
+    }
+    localStorage.setItem('cc_codigo', code);
+    S.store = store; start();
+  } catch (err) { console.error(err); toast('Não foi possível conectar. Verifique a internet.'); }
+  finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+});
+
+function start() {
+  $('#gate').hidden = true; $('#app').hidden = false;
+  S.store.watchModelos(m => { S.modelos = m.sort((a, b) => (a.name || '').localeCompare(b.name || '')); });
+  S.store.watchCultos((all, meta) => {
+    S.cultos = sortCultos(all);
+    if (!S.cultos.length) {
+      if (meta.fromCache || S.creatingFirst) return; // espera a resposta do servidor antes de criar
+      S.creatingFirst = true; createFirst(); return;
+    }
+    S.creatingFirst = false;
+    if (!S.cultoId || !S.cultos.find(c => c.id === S.cultoId)) {
+      const saved = localStorage.getItem('cc_atual');
+      openCulto((S.cultos.find(c => c.id === saved) || S.cultos[0]).id);
+    } else renderTop();
+  });
+}
+
+function createFirst() {
+  // aproveita o cronograma salvo pela versão antiga da ferramenta, se existir
+  let base = MODELO_PADRAO;
+  try {
+    const old = JSON.parse(localStorage.getItem('culto251125Schedule'));
+    if (old && Array.isArray(old.items) && old.items.length) base = { title: old.title || 'Sessão', startTime: old.startTime || '09:55', items: old.items };
+  } catch {}
+  const id = S.store.createCulto({ title: base.title, date: todayISO(), startTime: base.startTime, items: itemsToMap(base.items) });
+  openCulto(id);
+}
+
+function openCulto(id) {
+  flush();
+  if (S.unsubCulto) S.unsubCulto();
+  S.cultoId = id; S.culto = null; S.pending = {};
+  try { localStorage.setItem('cc_atual', id); } catch {}
+  nodes.clear(); list.innerHTML = '';
+  S.unsubCulto = S.store.watchCulto(id, (c, meta) => {
+    if (!c) return;
+    S.culto = applyPatch(c, S.pending);
+    S.sync = meta;
+    render();
+  });
+}
+
+/* ===================== RENDERIZAÇÃO ===================== */
+function setVal(inp, v) { v = v ?? ''; if (document.activeElement !== inp && inp.value !== String(v)) inp.value = v; }
+function autosize(t) { t.style.height = 'auto'; t.style.height = Math.max(64, t.scrollHeight + 2) + 'px'; }
+
+function render() {
+  if (!S.culto) return;
+  renderTop(); renderMeta(); renderList(); renderSummary(); renderLive();
+}
+
+function renderTop() {
+  const c = S.culto; if (!c) return;
+  $('#sw-title').textContent = c.title || 'Sem nome';
+  $('#sw-sub').textContent = `${fmtDateShort(c.date)} · ${S.cultos.length} de ${MAX_CULTOS} cronogramas`;
+  const el = $('#sync');
+  if (S.store.mode === 'local') { el.className = 'sync local'; el.textContent = 'Local'; }
+  else if (!navigator.onLine) { el.className = 'sync off'; el.textContent = 'Offline'; }
+  else if (S.sync.pending || Object.keys(S.pending).length) { el.className = 'sync saving'; el.textContent = 'Salvando'; }
+  else { el.className = 'sync ok'; el.textContent = 'Sincronizado'; }
+}
+window.addEventListener('online', renderTop);
+window.addEventListener('offline', renderTop);
+
+function renderMeta() {
+  const c = S.culto;
+  setVal($('#m-title'), c.title); setVal($('#m-date'), c.date); setVal($('#m-start'), c.startTime);
+}
+
+const GRIP = '<svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></svg>';
+const DOTS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>';
+
+function createItemNode(id) {
+  const li = document.createElement('li');
+  li.className = 'item'; li.dataset.id = id;
+  li.innerHTML = `
+    <div class="grip" title="Arraste para reordenar">${GRIP}</div>
+    <div class="time"></div>
+    <div class="body">
+      <div class="row1">
+        <input class="inline f-title" data-f="title" placeholder="Título" enterkeyhint="next">
+        <label class="dur"><input class="inline f-dur" data-f="duration" type="number" inputmode="numeric" min="0" max="999" enterkeyhint="done"><span>min</span></label>
+      </div>
+      <input class="inline f-resp" data-f="responsible" placeholder="Responsável" enterkeyhint="done">
+    </div>
+    <button class="more" aria-label="Opções do item">${DOTS}</button>`;
+  li.q = { time: $('.time', li), title: $('.f-title', li), dur: $('.f-dur', li), resp: $('.f-resp', li), body: $('.body', li), desc: null };
+  return li;
+}
+
+function renderList() {
+  const items = itemsArr(S.culto);
+  const live = liveInfo();
+  const ids = new Set(items.map(i => i.id));
+  for (const [id, n] of nodes) if (!ids.has(id)) { n.remove(); nodes.delete(id); }
+  let t = hm2min(S.culto.startTime);
+  items.forEach((it, i) => {
+    let n = nodes.get(it.id);
+    if (!n) { n = createItemNode(it.id); nodes.set(it.id, n); }
+    if (list.children[i] !== n) list.insertBefore(n, list.children[i] || null);
+    n.q.time.textContent = min2hm(t);
+    setVal(n.q.title, it.title); setVal(n.q.resp, it.responsible); setVal(n.q.dur, it.duration ?? 0);
+    const hasDesc = it.description !== undefined && it.description !== null;
+    if (hasDesc && !n.q.desc) {
+      const ta = document.createElement('textarea');
+      ta.className = 'f-desc'; ta.dataset.f = 'description'; ta.placeholder = 'Detalhes (um por linha)…';
+      n.q.body.appendChild(ta); n.q.desc = ta;
+    } else if (!hasDesc && n.q.desc) { n.q.desc.remove(); n.q.desc = null; }
+    if (n.q.desc) { setVal(n.q.desc, it.description); autosize(n.q.desc); }
+    n.classList.toggle('now', !!live && live.idx === i);
+    n.classList.toggle('done', !!live && i < live.idx);
+    t += num(it.duration);
+  });
+}
+
+function totals() {
+  const items = itemsArr(S.culto);
+  const total = items.reduce((s, it) => s + num(it.duration), 0);
+  return { total, end: min2hm(hm2min(S.culto.startTime) + total), items };
+}
+function renderSummary() {
+  const { total, end } = totals();
+  $('#sum-end').textContent = end;
+  $('#sum-total').textContent = fmtDur(total);
+}
+
+/* ===================== EDIÇÃO ===================== */
+$('#m-title').addEventListener('input', e => queue({ title: e.target.value }));
+$('#m-date').addEventListener('change', e => queue({ date: e.target.value }, { now: true }));
+$('#m-start').addEventListener('input', e => { if (e.target.value) queue({ startTime: e.target.value }); });
+$('#m-title').addEventListener('blur', flush);
+$('#m-start').addEventListener('blur', flush);
+
+list.addEventListener('input', e => {
+  const f = e.target.dataset.f; if (!f) return;
+  const id = e.target.closest('.item').dataset.id;
+  let v = e.target.value;
+  if (f === 'duration') v = num(v);
+  queue({ [`items.${id}.${f}`]: v });
+  if (f === 'description') autosize(e.target);
+});
+list.addEventListener('focusout', flush);
+list.addEventListener('focusin', e => { if (e.target.classList.contains('f-dur')) setTimeout(() => e.target.select(), 0); });
+list.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target.classList.contains('f-title')) { e.preventDefault(); e.target.closest('.item').querySelector('.f-resp').focus(); }
+  else if (e.target.matches('.f-resp, .f-dur')) { e.preventDefault(); e.target.blur(); }
+});
+list.addEventListener('click', e => {
+  const b = e.target.closest('.more'); if (!b) return;
+  itemMenu(b.closest('.item').dataset.id);
+});
+
+function addItem(detailed) {
+  const items = itemsArr(S.culto);
+  const id = uid();
+  const it = { title: '', responsible: '', duration: detailed ? 10 : 5, order: items.length };
+  if (detailed) it.description = '';
+  queue({ [`items.${id}`]: it }, { now: true });
+  const n = nodes.get(id);
+  if (n) { n.scrollIntoView({ behavior: 'smooth', block: 'center' }); n.q.title.focus(); }
+}
+$('#add-simple').addEventListener('click', () => addItem(false));
+$('#add-detail').addEventListener('click', () => addItem(true));
+
+function writeOrder(ids) { const p = {}; ids.forEach((id, i) => p[`items.${id}.order`] = i); queue(p, { now: true }); }
+
+if (window.Sortable) {
+  Sortable.create(list, {
+    handle: '.grip', animation: 160, ghostClass: 'ghost', chosenClass: 'chosen',
+    delay: 0, forceFallback: false,
+    onEnd() { writeOrder([...list.children].map(n => n.dataset.id)); }
+  });
+}
+
+function itemMenu(id) {
+  const items = itemsArr(S.culto);
+  const i = items.findIndex(x => x.id === id); if (i < 0) return;
+  const it = items[i];
+  const ids = items.map(x => x.id);
+  const hasDesc = it.description !== undefined && it.description !== null;
+  sheet({
+    title: it.title || 'Item', actions: [
+      { label: 'Mover para cima', disabled: i === 0, onClick: () => { [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]; writeOrder(ids); } },
+      { label: 'Mover para baixo', disabled: i === items.length - 1, onClick: () => { [ids[i + 1], ids[i]] = [ids[i], ids[i + 1]]; writeOrder(ids); } },
+      { label: hasDesc ? 'Remover descrição' : 'Adicionar descrição', onClick: () => queue({ [`items.${id}.description`]: hasDesc ? DEL : '' }, { now: true }) },
+      { label: 'Duplicar', onClick: () => {
+          const nid = uid(); const copy = { ...it }; delete copy.id;
+          const p = { [`items.${nid}`]: copy };
+          ids.splice(i + 1, 0, nid);
+          ids.forEach((x, k) => { if (x === nid) p[`items.${nid}`].order = k; else p[`items.${x}.order`] = k; });
+          queue(p, { now: true });
+        } },
+      { sep: true },
+      { label: 'Excluir item', danger: true, onClick: async () => { if (await confirmBox(`Excluir "${it.title || 'item'}"?`, 'Excluir')) queue({ [`items.${id}`]: DEL }, { now: true }); } }
+    ]
+  });
+}
+
+/* ===================== CULTOS E MODELOS ===================== */
+$('#culto-switch').addEventListener('click', () => {
+  flush();
+  sheet({
+    title: 'Cronogramas',
+    note: `A equipe guarda os ${MAX_CULTOS} cronogramas mais recentes.`,
+    actions: [
+      ...S.cultos.map(c => ({ label: c.title || 'Sem nome', sub: `${fmtDateShort(c.date)} · início ${c.startTime || '--:--'}`, active: c.id === S.cultoId, onClick: () => openCulto(c.id) })),
+      { sep: true },
+      { label: '＋ Novo cronograma', onClick: novoCulto }
+    ]
+  });
+});
+
+async function novoCulto() {
+  const modelos = [...S.modelos.map(m => ({ value: 'm:' + m.id, label: 'Modelo: ' + m.name })), { value: 'padrao', label: 'Modelo: ' + MODELO_PADRAO.name }];
+  const opts = [...modelos, { value: 'dup', label: 'Copiar o cronograma atual' }, { value: 'vazio', label: 'Em branco' }];
+  const oldest = S.cultos.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))[0];
+  const note = S.cultos.length >= MAX_CULTOS && oldest ? `Limite de ${MAX_CULTOS}: o mais antigo ("${oldest.title}", ${fmtDateShort(oldest.date)}) será apagado.` : '';
+  const v = await form({
+    title: 'Novo cronograma', note, ok: 'Criar',
+    fields: [
+      { name: 'base', label: 'Começar a partir de', type: 'select', options: opts, value: opts[0].value },
+      { name: 'title', label: 'Nome do culto (opcional)', placeholder: 'usa o nome do modelo' },
+      { name: 'date', label: 'Data', type: 'date', value: todayISO() }
+    ]
+  });
+  if (!v) return;
+  let src;
+  if (v.base === 'padrao') src = MODELO_PADRAO;
+  else if (v.base === 'dup') src = { title: S.culto.title, startTime: S.culto.startTime, items: stripItems(S.culto) };
+  else if (v.base === 'vazio') src = { title: 'Novo culto', startTime: S.culto?.startTime || '09:55', items: [] };
+  else src = S.modelos.find(m => 'm:' + m.id === v.base) || MODELO_PADRAO;
+  const id = S.store.createCulto({ title: v.title.trim() || src.title || 'Culto', date: v.date || todayISO(), startTime: src.startTime || '09:55', items: itemsToMap(src.items || []) });
+  // mantém apenas os mais recentes
+  S.cultos.filter(c => c.id !== id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(MAX_CULTOS - 1).forEach(c => S.store.deleteCulto(c.id));
+  openCulto(id);
+  toast('Cronograma criado');
+}
+
+$('#menu-btn').addEventListener('click', () => {
+  flush();
+  const actions = [
+    { label: 'Salvar como modelo', sub: 'Reaproveite esta estrutura em outros cultos', onClick: salvarModelo },
+    { label: 'Gerenciar modelos', sub: S.modelos.length ? `${S.modelos.length} modelo(s) salvo(s)` : 'Nenhum modelo salvo ainda', onClick: gerenciarModelos },
+    { sep: true },
+    { label: 'Excluir este cronograma', danger: true, onClick: excluirCulto },
+    { sep: true }
+  ];
+  if (S.store.mode === 'local') {
+    actions.push({ label: 'Modo local', sub: 'Sincronização desativada: configure o Firebase (veja o LEIA-ME)', onClick: () => {} });
+  } else {
+    actions.push({ label: 'Código da equipe', sub: 'Ver e copiar para enviar a outro gerente', onClick: mostrarCodigo });
+    actions.push({ label: 'Sair deste aparelho', onClick: sair });
+  }
+  sheet({ title: 'Menu', actions });
+});
+
+async function salvarModelo() {
+  const v = await form({ title: 'Salvar como modelo', fields: [{ name: 'name', label: 'Nome do modelo', value: S.culto.title, placeholder: 'Ex.: Domingo manhã' }], ok: 'Salvar' });
+  if (!v || !v.name.trim()) return;
+  S.store.saveModelo({ name: v.name.trim(), title: S.culto.title, startTime: S.culto.startTime, items: stripItems(S.culto) });
+  toast('Modelo salvo');
+}
+function gerenciarModelos() {
+  if (!S.modelos.length) { toast('Nenhum modelo salvo. Use "Salvar como modelo".'); return; }
+  sheet({
+    title: 'Modelos', note: 'Toque em um modelo para excluí-lo.',
+    actions: S.modelos.map(m => ({ label: m.name, sub: `${(m.items || []).length} itens · início ${m.startTime}`, onClick: async () => {
+      if (await confirmBox(`Excluir o modelo "${m.name}"?`, 'Excluir')) { S.store.deleteModelo(m.id); toast('Modelo excluído'); }
+    } }))
+  });
+}
+async function excluirCulto() {
+  if (!(await confirmBox(`Excluir "${S.culto.title}" (${fmtDateShort(S.culto.date)})?`, 'Excluir', true, 'Isso apaga o cronograma para toda a equipe.'))) return;
+  const id = S.cultoId;
+  if (S.unsubCulto) S.unsubCulto();
+  S.cultoId = null; S.pending = {};
+  S.store.deleteCulto(id);
+  toast('Cronograma excluído');
+}
+function mostrarCodigo() {
+  const code = localStorage.getItem('cc_codigo') || '';
+  sheet({
+    title: 'Código da equipe', html: `<div class="code-box">${esc(code)}</div>`,
+    note: 'Quem tiver este código pode ver e editar os cronogramas. Envie só para a equipe de gerência.',
+    actions: [{ label: 'Copiar código', onClick: async () => { try { await navigator.clipboard.writeText(code); toast('Código copiado'); } catch { toast(code); } } }]
+  });
+}
+async function sair() {
+  if (!(await confirmBox('Sair deste aparelho?', 'Sair', true, 'Os cronogramas continuam salvos. Para voltar, basta digitar o código.'))) return;
+  flush(); localStorage.removeItem('cc_codigo'); localStorage.removeItem('cc_atual'); location.reload();
+}
+
+/* ===================== MODO AO VIVO ===================== */
+function liveInfo() {
+  const c = S.culto, L = c && c.live;
+  if (!L || !L.active) return null;
+  const items = itemsArr(c); if (!items.length) return null;
+  const idx = Math.min(Math.max(0, L.index || 0), items.length - 1);
+  const mid = new Date(); mid.setHours(0, 0, 0, 0);
+  const starts = []; let acc = hm2min(c.startTime);
+  items.forEach(it => { starts.push(acc); acc += num(it.duration); });
+  const it = items[idx], durMs = num(it.duration) * 60000, now = Date.now();
+  const startedAt = L.itemStartedAt || now;
+  const elapsed = now - startedAt, remaining = durMs - elapsed;
+  const plannedEnd = mid.getTime() + (starts[idx] + num(it.duration)) * 60000;
+  const projEnd = Math.max(startedAt + durMs, now);
+  const delta = projEnd - plannedEnd;
+  return { idx, item: it, next: items[idx + 1], nextAt: projEnd, remaining, elapsed, durMs, deltaMin: Math.round(delta / 60000), endAt: mid.getTime() + acc * 60000 + delta, isLast: idx === items.length - 1, total: items.length };
+}
+const mmss = ms => { const neg = ms < 0; ms = Math.abs(ms); const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (neg ? '+' : '') + (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0'); };
+function statusText(d) { if (Math.abs(d) < 1) return ['No horário', '']; return d > 0 ? [`${d} min atrasado`, 'late'] : [`${-d} min adiantado`, 'early']; }
+
+function renderLive() {
+  const L = liveInfo();
+  const btn = $('#live-btn');
+  btn.classList.toggle('on', !!L);
+  btn.querySelector('span').textContent = L ? 'Ao vivo agora' : 'Ao vivo';
+  $('#live-banner').hidden = !L || S.liveOpen;
+  $('#live').hidden = !L || !S.liveOpen;
+  document.body.style.overflow = L && S.liveOpen ? 'hidden' : '';
+  if (!L) return;
+  const [st, cls] = statusText(L.deltaMin);
+  // banner
+  $('#lb-title').textContent = `${L.idx + 1}/${L.total} · ${L.item.title || 'Item'}`;
+  $('#lb-sub').textContent = `${st} · término ${ms2hm(L.endAt)}`;
+  $('#lb-count').textContent = mmss(L.remaining);
+  $('#lb-count').style.color = L.remaining < 0 ? '#ff6b6b' : '';
+  if (!S.liveOpen) return;
+  // tela cheia
+  const s = $('#lv-status'); s.textContent = st; s.className = 'status ' + cls;
+  $('#lv-label').textContent = `Agora · item ${L.idx + 1} de ${L.total}`;
+  $('#lv-title').textContent = L.item.title || 'Item';
+  $('#lv-resp').textContent = L.item.responsible || '';
+  $('#lv-desc').textContent = L.item.description || '';
+  const cnt = $('#lv-count'); cnt.textContent = mmss(L.remaining); cnt.classList.toggle('over', L.remaining < 0);
+  const pct = L.durMs ? Math.min(100, (L.elapsed / L.durMs) * 100) : 100;
+  $('#lv-bar').classList.toggle('over', L.remaining < 0);
+  $('#lv-bar > div').style.width = pct + '%';
+  $('#lv-next').hidden = !L.next;
+  if (L.next) {
+    $('#lv-next-title').textContent = L.next.title || 'Item';
+    $('#lv-next-resp').textContent = L.next.responsible || '';
+    $('#lv-next-time').textContent = ms2hm(L.nextAt);
+  }
+  $('#lv-end').textContent = `Término previsto: ${ms2hm(L.endAt)}`;
+  $('#live-next').firstChild.textContent = L.isLast ? 'Finalizar ' : 'Próximo ';
+}
+setInterval(() => { if (S.culto && S.culto.live && S.culto.live.active) renderLive(); }, 1000);
+
+function setLive(live) { queue({ live }, { now: true }); }
+$('#live-btn').addEventListener('click', async () => {
+  if (liveInfo()) { S.liveOpen = true; renderLive(); return; }
+  const items = itemsArr(S.culto);
+  if (!items.length) { toast('Adicione itens ao cronograma primeiro.'); return; }
+  const ok = await confirmBox('Iniciar o modo ao vivo?', 'Iniciar agora', false,
+    `O primeiro item ("${items[0].title}") começa agora. Toda a equipe verá o andamento, e cada um pode avançar os itens.`);
+  if (!ok) return;
+  S.liveOpen = true;
+  setLive({ active: true, index: 0, itemStartedAt: Date.now() });
+});
+$('#live-banner').addEventListener('click', () => { S.liveOpen = true; renderLive(); });
+$('#live-min').addEventListener('click', () => { S.liveOpen = false; renderLive(); });
+$('#live-next').addEventListener('click', async () => {
+  const L = liveInfo(); if (!L) return;
+  if (L.isLast) { if (await confirmBox('Finalizar o culto?', 'Finalizar', false)) { S.liveOpen = false; setLive({ active: false }); toast('Modo ao vivo encerrado'); } return; }
+  setLive({ active: true, index: L.idx + 1, itemStartedAt: Date.now() });
+});
+$('#live-prev').addEventListener('click', () => {
+  const L = liveInfo(); if (!L || L.idx === 0) return;
+  setLive({ active: true, index: L.idx - 1, itemStartedAt: Date.now() });
+});
+$('#live-stop').addEventListener('click', async () => {
+  if (!(await confirmBox('Encerrar o modo ao vivo?', 'Encerrar'))) return;
+  S.liveOpen = false; setLive({ active: false });
+});
+
+/* ===================== EXPORTAR IMAGEM ===================== */
+$('#export-btn').addEventListener('click', async () => {
+  flush();
+  if (!window.html2canvas) { toast('Não foi possível carregar o gerador de imagem. Verifique a internet.'); return; }
+  const btn = $('#export-btn'); btn.disabled = true;
+  const c = S.culto; const { total, end, items } = totals();
+  let t = hm2min(c.startTime);
+  const rows = items.map(it => {
+    const time = min2hm(t); t += num(it.duration);
+    const desc = it.description && it.description.trim() ? `<tr><td></td><td colspan="3" class="ex-desc">${esc(it.description.trim())}</td></tr>` : '';
+    return `<tr class="main"><td class="ex-time">${time}</td><td class="ex-t">${esc(it.title)}</td><td class="ex-d">${num(it.duration)} min</td><td class="ex-r">${esc(it.responsible)}</td></tr>${desc}`;
+  }).join('');
+  const box = $('#export');
+  box.innerHTML = `<div class="ex">
+    <div class="ex-head"><div class="ex-kicker">CRONOGRAMA</div><div class="ex-title">${esc(c.title || 'Culto')}</div>
+      <div class="ex-sub">${esc(fmtDateLong(c.date))}${c.date ? ' · ' : ''}${esc(c.startTime)} às ${end}</div></div>
+    <table class="ex-table">${rows}</table>
+    <div class="ex-foot"><span>Término previsto <b>${end}</b></span><span>Duração <b>${fmtDur(total)}</b></span></div>
+  </div>`;
+  try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    await new Promise(r => setTimeout(r, 60));
+    const canvas = await html2canvas(box.firstElementChild, { scale: 3, backgroundColor: '#ffffff', logging: false });
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    const name = `${(c.title || 'Cronograma').replace(/[\\/:*?"<>|]/g, '')}_${(c.date || todayISO()).split('-').reverse().join('-')}.png`;
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: c.title, text: 'Essa é a versão mais recente do Cronograma!' }); return; }
+      catch (err) { if (err.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast('Imagem baixada');
+  } catch (err) {
+    console.error(err); toast('Erro ao gerar a imagem. Tente novamente.');
+  } finally { box.innerHTML = ''; btn.disabled = false; }
+});
+
+/* ===================== FOLHAS E DIÁLOGOS ===================== */
+function sheet({ title, note, html, actions = [] }) {
+  return new Promise(res => {
+    const bd = document.createElement('div');
+    bd.className = 'backdrop';
+    bd.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-handle"></div>${title ? `<div class="sheet-title">${esc(title)}</div>` : ''}${html || ''}${note ? `<div class="sheet-note">${esc(note)}</div>` : ''}<div class="sheet-body"></div></div>`;
+    const body = $('.sheet-body', bd);
+    const close = () => { bd.classList.remove('open'); setTimeout(() => bd.remove(), 220); res(); };
+    actions.forEach(a => {
+      if (a.sep) { const s = document.createElement('div'); s.className = 'sheet-sep'; body.appendChild(s); return; }
+      const b = document.createElement('button');
+      b.className = 'sheet-action' + (a.danger ? ' danger' : '') + (a.active ? ' active' : '');
+      b.innerHTML = `<span>${esc(a.label)}</span>${a.sub ? `<small>${esc(a.sub)}</small>` : ''}`;
+      if (a.disabled) { b.disabled = true; b.style.opacity = .4; }
+      b.onclick = () => { close(); a.onClick && setTimeout(a.onClick, 10); };
+      body.appendChild(b);
+    });
+    bd.addEventListener('click', e => { if (e.target === bd) close(); });
+    document.body.appendChild(bd);
+    requestAnimationFrame(() => bd.classList.add('open'));
+  });
+}
+
+function form({ title, note, fields = [], ok = 'Salvar', danger = false }) {
+  return new Promise(res => {
+    const bd = document.createElement('div');
+    bd.className = 'backdrop';
+    const f = fields.map(fl => {
+      if (fl.type === 'select') return `<label>${esc(fl.label)}<select name="${fl.name}">${fl.options.map(o => `<option value="${esc(o.value)}"${o.value === fl.value ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select></label>`;
+      return `<label>${esc(fl.label)}<input name="${fl.name}" type="${fl.type || 'text'}" value="${esc(fl.value || '')}" placeholder="${esc(fl.placeholder || '')}"></label>`;
+    }).join('');
+    bd.innerHTML = `<form class="sheet" role="dialog" aria-modal="true"><div class="sheet-handle"></div><div class="sheet-title">${esc(title)}</div>${note ? `<div class="sheet-note">${esc(note)}</div>` : ''}<div class="form">${f}<div class="row"><button type="button" class="btn ghost grow" data-x>Cancelar</button><button type="submit" class="btn ${danger ? 'danger' : 'primary'} grow">${esc(ok)}</button></div></div></form>`;
+    const frm = $('form', bd);
+    let done = false;
+    const close = v => { if (done) return; done = true; bd.classList.remove('open'); setTimeout(() => bd.remove(), 220); res(v); };
+    frm.addEventListener('submit', e => { e.preventDefault(); close(Object.fromEntries(new FormData(frm))); });
+    $('[data-x]', bd).onclick = () => close(null);
+    bd.addEventListener('click', e => { if (e.target === bd) close(null); });
+    document.body.appendChild(bd);
+    requestAnimationFrame(() => bd.classList.add('open'));
+  });
+}
+const confirmBox = (title, ok = 'Confirmar', danger = true, note = '') => form({ title, note, ok, danger }).then(v => !!v);
+
+init();
+</script>
+</body>
+</html>
