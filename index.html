@@ -1066,7 +1066,7 @@ function linkSheet() {
     { label: 'Gerar novo link', sub: 'O link atual para de funcionar', onClick: novoLink },
     { label: 'Desativar link', danger: true, onClick: desativarLink }
   );
-  sheet({ title: 'Link ao vivo', html: `<div class="share-state${here ? ' on' : ''}">${state}</div><div class="link-box">${esc(shareUrl(sh.shareId))}</div>`, note: 'Somente leitura: quem abrir o link não consegue editar. Dica para o Telegram: escreva "📅 Cronograma ao vivo", selecione o texto, toque em Formatar → Link e cole o link. Fixe a mensagem no grupo.', actions });
+  sheet({ title: 'Link ao vivo', html: `<div class="share-state${here ? ' on' : ''}">${state}</div><div class="link-box">${esc(shareUrl(sh.shareId))}</div>`, actions });
 }
 async function criarLink() {
   if (!needOnline()) return;
