@@ -279,7 +279,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   font-family:Inter,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   -webkit-text-size-adjust:none;text-size-adjust:none;font-size:15px;line-height:1.3;
 }
-.ex-head{background:#1d3557;color:#fff;padding:16px 20px 14px}
+.ex-head{background:#1d3557;color:#fff;padding:16px 20px 14px;display:flex;align-items:center;gap:14px}
+.ex-logo{width:58px;height:58px;flex-shrink:0;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:#000;overflow:hidden}
+.ex-logo img{display:block;width:100%;height:100%;border-radius:50%}
+.ex-htext{min-width:0}
 .ex-kicker{font-size:11px;font-weight:700;letter-spacing:.14em;opacity:.7}
 .ex-title{font-size:22px;font-weight:800;margin-top:2px}
 .ex-sub{font-size:13px;opacity:.85;margin-top:3px}
@@ -1255,10 +1258,13 @@ async function exportImage(btn) {
     const desc = it.description && it.description.trim() ? `<tr><td></td><td colspan="3" class="ex-desc">${esc(it.description.trim())}</td></tr>` : '';
     return `<tr class="main"><td class="ex-time">${time}</td><td class="ex-t">${esc(it.title)}</td><td class="ex-d">${num(it.duration)} min</td><td class="ex-r">${esc(it.responsible)}</td></tr>${desc}`;
   }).join('');
+  // mesma logo do topo do app (definida no CSS da classe .logo)
+  const logoEl = document.querySelector('.logo');
+  const logoSrc = ((logoEl && getComputedStyle(logoEl).backgroundImage) || '').match(/url\(["']?(data:[^"')]+)["']?\)/)?.[1] || '';
   const box = $('#export');
   box.innerHTML = `<div class="ex">
-    <div class="ex-head"><div class="ex-kicker">CRONOGRAMA</div><div class="ex-title">${esc(c.title || 'Culto')}</div>
-      <div class="ex-sub">${esc(fmtDateLong(c.date))}${c.date ? ' · ' : ''}${esc(c.startTime)} às ${end}</div></div>
+    <div class="ex-head">${logoSrc ? `<div class="ex-logo"><img src="${logoSrc}" alt=""></div>` : ''}<div class="ex-htext"><div class="ex-kicker">CRONOGRAMA</div><div class="ex-title">${esc(c.title || 'Culto')}</div>
+      <div class="ex-sub">${esc(fmtDateLong(c.date))}${c.date ? ' · ' : ''}${esc(c.startTime)} às ${end}</div></div></div>
     <table class="ex-table">${rows}</table>
     <div class="ex-foot"><span>Término previsto <b>${end}</b></span><span>Duração <b>${fmtDur(total)}</b></span></div>
   </div>`;
